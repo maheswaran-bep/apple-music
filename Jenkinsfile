@@ -15,9 +15,32 @@ pipeline {
             }
         }
 
+        stage('Inspect Workspace') {
+            steps {
+                sh '''
+                    echo "===== Workspace ====="
+                    pwd
+                    ls -la
+                    echo "===== Compose Files ====="
+                    find . -maxdepth 3 -iname '*compose*.yml' -o -iname '*compose*.yaml'
+                '''
+            }
+        }
+
         stage('Validate Docker Compose') {
             steps {
-                sh 'docker compose config'
+                sh '''
+                    if [ -f docker-compose.yml ]; then
+                        docker compose -f docker-compose.yml config
+                    elif [ -f compose.yaml ]; then
+                        docker compose -f compose.yaml config
+                    elif [ -f compose.yml ]; then
+                        docker compose -f compose.yml config
+                    else
+                        echo "ERROR: Docker Compose file not found in repository root"
+                        exit 1
+                    fi
+                '''
             }
         }
 
