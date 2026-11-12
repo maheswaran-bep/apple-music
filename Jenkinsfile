@@ -21,8 +21,15 @@ pipeline {
                     echo "===== Workspace ====="
                     pwd
                     ls -la
+
+                    echo "===== Backend Files ====="
+                    find backend -maxdepth 3 -type f
+
+                    echo "===== Frontend Files ====="
+                    find frontend -maxdepth 2 -type f
+
                     echo "===== Compose Files ====="
-                    find . -maxdepth 3 -iname '*compose*.yml' -o -iname '*compose*.yaml'
+                    find . -maxdepth 3 \\( -iname '*compose*.yml' -o -iname '*compose*.yaml' \\)
                 '''
             }
         }
@@ -37,7 +44,7 @@ pipeline {
                     elif [ -f compose.yml ]; then
                         docker compose -f compose.yml config
                     else
-                        echo "ERROR: Docker Compose file not found in repository root"
+                        echo "ERROR: Docker Compose file not found"
                         exit 1
                     fi
                 '''
@@ -46,18 +53,31 @@ pipeline {
 
         stage('Build Images') {
             steps {
-                sh 'docker compose build'
+                sh '''
+                    docker compose build
+                '''
             }
         }
 
         stage('Backend Syntax Check') {
             steps {
                 sh '''
+                    echo "Checking Python files..."
+
                     docker run --rm \
                       -v "$WORKSPACE/backend:/app" \
                       -w /app \
                       python:3.12-slim \
-                      python -m compileall -q app
+                      sh -c '
+                        find . -type f -name "*.py" \
+                          -not -path "./.venv/*" \
+                          | grep -q . || {
+                            echo "ERROR: No Python files found"
+                            exit 1
+                          }
+
+                        python -m compileall -q .
+                      '
                 '''
             }
         }
@@ -65,6 +85,13 @@ pipeline {
         stage('Frontend Build Validation') {
             steps {
                 sh '''
+                    echo "Checking package-lock.json..."
+
+                    test -f frontend/package-lock.json || {
+                        echo "ERROR: package-lock.json missing"
+                        exit 1
+                    }
+
                     docker run --rm \
                       -v "$WORKSPACE/frontend:/app" \
                       -w /app \
@@ -79,6 +106,9 @@ pipeline {
         success {
             echo 'Apple Music CI completed successfully!'
         }
+    }
+
+    post {
         failure {
             echo 'Apple Music CI failed. Check the console output.'
         }
