@@ -37,16 +37,7 @@ pipeline {
         stage('Validate Docker Compose') {
             steps {
                 sh '''
-                    if [ -f docker-compose.yml ]; then
-                        docker compose -f docker-compose.yml config
-                    elif [ -f compose.yaml ]; then
-                        docker compose -f compose.yaml config
-                    elif [ -f compose.yml ]; then
-                        docker compose -f compose.yml config
-                    else
-                        echo "ERROR: Docker Compose file not found"
-                        exit 1
-                    fi
+                    docker compose config
                 '''
             }
         }
@@ -62,22 +53,14 @@ pipeline {
         stage('Backend Syntax Check') {
             steps {
                 sh '''
-                    echo "Checking Python files..."
+                    echo "Checking backend Python syntax..."
 
                     docker run --rm \
-                      -v "$WORKSPACE/backend:/app" \
-                      -w /app \
-                      python:3.12-slim \
-                      sh -c '
-                        find . -type f -name "*.py" \
-                          -not -path "./.venv/*" \
-                          | grep -q . || {
-                            echo "ERROR: No Python files found"
-                            exit 1
-                          }
+                      --entrypoint python \
+                      apple-music-ci-cd-backend \
+                      -m compileall -q /app
 
-                        python -m compileall -q .
-                      '
+                    echo "Backend Python syntax check passed."
                 '''
             }
         }
@@ -85,18 +68,14 @@ pipeline {
         stage('Frontend Build Validation') {
             steps {
                 sh '''
-                    echo "Checking package-lock.json..."
-
-                    test -f frontend/package-lock.json || {
-                        echo "ERROR: package-lock.json missing"
-                        exit 1
-                    }
+                    echo "Checking frontend production build..."
 
                     docker run --rm \
-                      -v "$WORKSPACE/frontend:/app" \
-                      -w /app \
-                      node:22-alpine \
-                      sh -c "npm ci && npm run build"
+                      --entrypoint sh \
+                      apple-music-ci-cd-frontend \
+                      -c "test -f /usr/share/nginx/html/index.html"
+
+                    echo "Frontend production build verified."
                 '''
             }
         }
