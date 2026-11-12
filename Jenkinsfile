@@ -106,11 +106,13 @@ pipeline {
         success {
             echo 'Apple Music CI completed successfully!'
         }
-    }
 
-    post {
         failure {
             echo 'Apple Music CI failed. Check the console output.'
+        }
+
+        always {
+            echo 'Apple Music pipeline execution finished.'
         }
     }
 }
