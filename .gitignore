@@ -9,3 +9,4 @@ backend/music_library/
 __install/
 backend/r2_test.py
 .git_broken_20260705/
+.env
